@@ -1,8 +1,10 @@
-from flask import Flask, abort, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask_cors import CORS
 import yt_dlp
 import os
 
 app = Flask(__name__, static_folder='static', static_url_path='')
+CORS(app)
 
 @app.route('/')
 def index():
@@ -29,14 +31,14 @@ def search_youtube():
         try:
             search_result = ydl.extract_info(f'ytsearch5:{query}', download=False)
             if 'entries' in search_result:
-                videos = [get_video_info(entry) for entry in search_result['entries']]
+                videos = [video(entry) for entry in search_result['entries']]
                 return jsonify({'videos': videos})
             else:
                 return jsonify({'error': 'No results found'}), 404
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
-def get_video_info(data):
+def video(data):
     return {
         'title': data.get('title'),
         'url': data.get('url'),
@@ -51,10 +53,11 @@ def download_video():
 
     # Definir opções de download
     ydl_opts = {
-        'format': 'bestvideo+bestaudio/best',
+        'format': "bestvideo[ext=mp4][vcodec~='^(h264|avc)']+bestaudio[ext=m4a]/best[ext=mp4]",
         'ffmpeg_location': 'bin/ffmpeg.exe',
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
         'noplaylist': True,
+        'noprogress': True,
         'quiet': True,
         'progress_hooks': [progress_hook]
     }
@@ -77,18 +80,8 @@ def progress_hook(d):
     if d['status'] == 'finished':
         print(f"\nDone downloading video: {d['filename']}")
 
-
-@app.route('/download', methods=['GET'])
-def download_file():
-    # Ensure the filename is secure
-    safe_filename = os.path.join(DOWNLOAD_DIR, 'I Wonder.webm')
-    # Check if the file exists
-    if not os.path.isfile(safe_filename):
-        abort(404, description="File not found")
-
-    # Send the file to the client
-    return send_file(safe_filename, as_attachment=True)
-
+    elif d['status'] == 'downloading':
+        print(f"Downloading video: {d['filename']}")
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
