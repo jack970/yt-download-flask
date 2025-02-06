@@ -3,6 +3,7 @@ from flask_cors import CORS
 import yt_dlp
 import os
 
+# Variável global para armazenar o progresso
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
 
@@ -53,15 +54,14 @@ def download_video():
 
     # Definir opções de download
     ydl_opts = {
-        'format': "bestvideo[ext=mp4][vcodec~='^(h264|avc)']+bestaudio[ext=m4a]/best[ext=mp4]",
-        'ffmpeg_location': 'bin/ffmpeg.exe',
+        'format': "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4] / bv*+ba/b",
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
         'noplaylist': True,
         'noprogress': True,
-        'quiet': True,
-        'progress_hooks': [progress_hook]
+        'quiet': True
+        # 'progress_hooks': [progress_hook]
     }
-    print("Iniciando o download")
+    
     # Extraí informações e faça o download
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
@@ -73,15 +73,9 @@ def download_video():
             return jsonify({'error': 'Failed to download video'}), 500
 
         # Enviar o arquivo para o cliente
-        return send_file(filename, as_attachment=True)
-        
-        
-def progress_hook(d):
-    if d['status'] == 'finished':
-        print(f"\nDone downloading video: {d['filename']}")
-
-    elif d['status'] == 'downloading':
-        print(f"Downloading video: {d['filename']}")
+        return send_file(filename, as_attachment=True) 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(debug=True)
+
+
